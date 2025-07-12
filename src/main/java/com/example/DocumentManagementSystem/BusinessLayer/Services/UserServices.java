@@ -16,6 +16,10 @@ import javax.swing.tree.RowMapper;
 @Slf4j
 @Service
 public class UserServices {
-
+    @Autowired
+    UserRepository userRepository;
+public User findByUserName(String username)
+{
+    return userRepository.findByUserName(username).get();}
 
 }

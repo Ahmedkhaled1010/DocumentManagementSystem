@@ -10,18 +10,24 @@ import com.example.DocumentManagementSystem.Shared.POJO.APIResponse;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.neo4j.Neo4jProperties;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.Errors;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.Authentication;
+
 
 import java.util.Map;
 
 @RestController
 @Slf4j
 @RequestMapping("/public")
+@CrossOrigin(origins = "http://localhost:4200")
+
 public class PublicController {
 
     @Autowired
@@ -42,8 +48,7 @@ public class PublicController {
         return authServices.login(login);
     }
     @RequestMapping("/me")
-    public ResponseEntity<APIResponse<UserDto>> getUserDetails(@RequestBody TokenDto token) {
-        log.info(token.getToken());
-        return authServices.getUserDetails(token.getToken());
+    public ResponseEntity<APIResponse<UserDto>> getUserDetails( Authentication authentication) {
+        return authServices.getUserDetails(authentication);
     }
 }

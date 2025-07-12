@@ -20,6 +20,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.security.core.Authentication;
+
 
 import java.util.HashMap;
 import java.util.Map;
@@ -56,16 +58,20 @@ public class AuthServices {
             });
 
 
-            response = new APIResponse<>("401", "Error", errors);
+            response = new APIResponse<>("400", "Error", errors);
             return ResponseEntity.badRequest().body(response);
         }
         if (userRepository.findByEmail(registerDto.getEmail()).isPresent()) {
-            response = new APIResponse<>("401", "User already exists", null);
-            return ResponseEntity.status(401).body(response);
+            response = new APIResponse<>("400", "User already exists", null);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
         }
         if (userRepository.findByUserName(registerDto.getUserName()).isPresent()) {
-            response = new APIResponse<>("401", "Username Already taken", null);
-            return ResponseEntity.status(401).body(response);
+            response = new APIResponse<>("400", "Username Already taken", null);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        }
+        if (userRepository.findByNationalID(registerDto.getNationalID()).isPresent()) {
+            response = new APIResponse<>("400", "NationalID Already taken", null);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
         }
 
         Role role = rolesRepository.getByRoleName(Roles.USER.name());
@@ -116,14 +122,15 @@ public class AuthServices {
 
     }
 
-    public ResponseEntity<APIResponse< UserDto>> getUserDetails(String token) {
+    public ResponseEntity<APIResponse< UserDto>> getUserDetails(Authentication authentication) {
 
 
-        String username = jwtUtil.extractUsername(token);
-        if (username!=null) {
-            Optional<User> user = userRepository.findByUserName(username);
-            UserDto userDto = modelMapper.map(user.get(), UserDto.class);
-            if (user.isPresent()) {
+        User user =(User) authentication.getPrincipal();
+        if (user!=null) {
+            Optional<User> user1 = userRepository.findByUserName(user.getUserName());
+            if (user1.isPresent()) {
+                UserDto userDto = modelMapper.map(user1.get(), UserDto.class);
+
                 return ResponseEntity.ok(new APIResponse<>("200", "User details", userDto));
             }
         }

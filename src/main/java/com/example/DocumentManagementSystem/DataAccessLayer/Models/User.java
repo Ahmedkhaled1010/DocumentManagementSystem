@@ -42,10 +42,12 @@ public class User extends BaseEntity {
     private String name;
 
 
+
     private String userName;
 
 
     private String mobileNumber;
+    private String nationalID;
 
     private String email;
 

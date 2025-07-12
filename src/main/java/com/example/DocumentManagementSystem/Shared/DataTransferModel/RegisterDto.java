@@ -34,6 +34,9 @@ public class RegisterDto {
     @NotBlank(message = "Mobile number must not be blank")
     @Pattern(regexp = "^01[0-9]{9}$", message = "Mobile number must be 11 digits and start with 01")
     private String mobileNumber;
+    @NotBlank(message = "National ID must not be blank")
+    @Pattern(regexp = "^[0-9]{14}$", message = "National ID must be 14 digits")
+    private String nationalID;
 
     @NotBlank(message = "Email must not be blank")
     @Email(message = "Please provide a valid email address")
