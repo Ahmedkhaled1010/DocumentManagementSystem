@@ -1,4 +1,4 @@
-package com.example.DocumentManagementSystem.DataAccessLayer.Repository;
+package com.example.DocumentManagementSystem.DataAccessLayer.Repository.jpa;
 
 import com.example.DocumentManagementSystem.DataAccessLayer.Models.Role;
 import org.springframework.data.jpa.repository.JpaRepository;

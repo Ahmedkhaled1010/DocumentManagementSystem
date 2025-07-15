@@ -2,12 +2,14 @@ package com.example.DocumentManagementSystem.BusinessLayer.Services;
 
 import com.example.DocumentManagementSystem.DataAccessLayer.Models.Role;
 import com.example.DocumentManagementSystem.DataAccessLayer.Models.User;
-import com.example.DocumentManagementSystem.DataAccessLayer.Repository.RolesRepository;
-import com.example.DocumentManagementSystem.DataAccessLayer.Repository.UserRepository;
+import com.example.DocumentManagementSystem.DataAccessLayer.Models.WorkSpace;
+import com.example.DocumentManagementSystem.DataAccessLayer.Repository.jpa.RolesRepository;
+import com.example.DocumentManagementSystem.DataAccessLayer.Repository.jpa.UserRepository;
 import com.example.DocumentManagementSystem.DataAccessLayer.JWT.JwtUtil;
-import com.example.DocumentManagementSystem.Shared.DataTransferModel.LoginDto;
-import com.example.DocumentManagementSystem.Shared.DataTransferModel.RegisterDto;
-import com.example.DocumentManagementSystem.Shared.DataTransferModel.UserDto;
+import com.example.DocumentManagementSystem.DataAccessLayer.Repository.mongo.WorkSpaceRepository;
+import com.example.DocumentManagementSystem.Shared.DataTransferModel.User.LoginDto;
+import com.example.DocumentManagementSystem.Shared.DataTransferModel.User.RegisterDto;
+import com.example.DocumentManagementSystem.Shared.DataTransferModel.User.UserDto;
 import com.example.DocumentManagementSystem.Shared.Enum.Roles;
 import com.example.DocumentManagementSystem.Shared.POJO.APIResponse;
 import jakarta.validation.Valid;
@@ -24,6 +26,7 @@ import org.springframework.security.core.Authentication;
 
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -41,6 +44,8 @@ public class AuthServices {
     private JwtUtil jwtUtil;
     @Autowired
     private ModelMapper modelMapper;
+    @Autowired
+    private WorkSpaceRepository workSpaceRepository;
     public ResponseEntity<APIResponse<Map<String, String>>> createUser(@Valid @RequestBody RegisterDto registerDto, BindingResult bindingResult) {
 
 
@@ -74,11 +79,18 @@ public class AuthServices {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
         }
 
-        Role role = rolesRepository.getByRoleName(Roles.USER.name());
+        Role role = rolesRepository.getByRoleName(Roles.ADMIN.name());
         log.info(role.getRoleName());
         User user =modelMapper.map(registerDto,User.class);
         user.setRole(role);
         user.setPassword(passwordEncoder.encode(registerDto.getPassword()));
+
+        WorkSpace workSpace = new WorkSpace();
+        workSpace.setDescription("Hello " +user.getUserName()+"  First WorkSpace");
+        workSpace.setUserNationalID(user.getNationalID());
+        workSpace.setName(user.getUserName()+"  Work Space");
+        workSpace =workSpaceRepository.save(workSpace);
+        user.setWorkSpaceList(List.of(workSpace.getId()));
         User result = userRepository.save(user);
 
         if (result != null && result.getUserId() !=null) {
@@ -123,6 +135,7 @@ public class AuthServices {
     }
 
     public ResponseEntity<APIResponse< UserDto>> getUserDetails(Authentication authentication) {
+
 
 
         User user =(User) authentication.getPrincipal();

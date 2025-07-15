@@ -1,4 +1,4 @@
-package com.example.DocumentManagementSystem.Shared.DataTransferModel;
+package com.example.DocumentManagementSystem.Shared.DataTransferModel.User;
 
 import com.example.DocumentManagementSystem.Shared.annotation.FieldsValueMatch;
 import com.example.DocumentManagementSystem.Shared.annotation.PasswordValidator;

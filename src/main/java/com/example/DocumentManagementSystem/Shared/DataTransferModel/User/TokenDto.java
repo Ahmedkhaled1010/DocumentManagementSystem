@@ -1,4 +1,4 @@
-package com.example.DocumentManagementSystem.Shared.DataTransferModel;
+package com.example.DocumentManagementSystem.Shared.DataTransferModel.User;
 
 import lombok.Getter;
 

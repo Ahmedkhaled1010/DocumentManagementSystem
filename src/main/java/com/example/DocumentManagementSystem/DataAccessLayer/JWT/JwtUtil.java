@@ -18,7 +18,7 @@ import static javax.crypto.Cipher.SECRET_KEY;
 @Component
 public class JwtUtil {
     private final String SECRET = "AhmedSuperSecretKeyAhmedSuperSecretKey"; // لازم 32 character أو أكتر
-    private final long EXPIRATION_TIME = 30000;
+    private final long EXPIRATION_TIME = 1800000;
 
 
     private Key getSigningKey() {

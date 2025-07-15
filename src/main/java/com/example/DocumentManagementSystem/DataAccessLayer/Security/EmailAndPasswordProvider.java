@@ -2,7 +2,7 @@ package com.example.DocumentManagementSystem.DataAccessLayer.Security;
 
 import com.example.DocumentManagementSystem.DataAccessLayer.Models.Role;
 import com.example.DocumentManagementSystem.DataAccessLayer.Models.User;
-import com.example.DocumentManagementSystem.DataAccessLayer.Repository.UserRepository;
+import com.example.DocumentManagementSystem.DataAccessLayer.Repository.jpa.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -31,7 +31,7 @@ public class EmailAndPasswordProvider implements AuthenticationProvider {
         String password = authentication.getCredentials().toString();
         Optional<User> user = userRepository.findByEmail(email);
         if (user != null && user.get().getUserId() != null && passwordEncoder.matches(password, user.get().getPassword())) {
-            return new UsernamePasswordAuthenticationToken(email, null, getGrantedAuthorities(user.get().getRole()));
+            return new UsernamePasswordAuthenticationToken(user.get(), null, getGrantedAuthorities(user.get().getRole()));
         } else {
             throw new BadCredentialsException("Invalid username or password");
         }

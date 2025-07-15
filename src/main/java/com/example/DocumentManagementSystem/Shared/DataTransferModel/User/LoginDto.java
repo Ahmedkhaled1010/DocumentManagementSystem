@@ -1,6 +1,5 @@
-package com.example.DocumentManagementSystem.Shared.DataTransferModel;
+package com.example.DocumentManagementSystem.Shared.DataTransferModel.User;
 
-import com.example.DocumentManagementSystem.Shared.annotation.PasswordValidator;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;

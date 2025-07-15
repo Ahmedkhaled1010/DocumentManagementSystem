@@ -1,4 +1,4 @@
-package com.example.DocumentManagementSystem.DataAccessLayer.Repository;
+package com.example.DocumentManagementSystem.DataAccessLayer.Repository.mongo;
 
 import com.example.DocumentManagementSystem.DataAccessLayer.Models.Documnet;
 import org.springframework.data.mongodb.repository.MongoRepository;
