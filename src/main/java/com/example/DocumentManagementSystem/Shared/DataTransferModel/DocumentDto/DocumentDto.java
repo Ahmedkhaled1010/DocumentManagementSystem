@@ -1,15 +1,10 @@
-package com.example.DocumentManagementSystem.DataAccessLayer.Models;
+package com.example.DocumentManagementSystem.Shared.DataTransferModel.DocumentDto;
 
 import com.example.DocumentManagementSystem.Shared.Enum.Privacy;
 import lombok.Data;
 import org.bson.types.ObjectId;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.mapping.Document;
 @Data
-@Document(collection = "documents")
-public class Documnet extends BaseEntity {
-
-    @Id
+public class    DocumentDto {
     private ObjectId id;
     private ObjectId workspaceId;
     private String fileName;

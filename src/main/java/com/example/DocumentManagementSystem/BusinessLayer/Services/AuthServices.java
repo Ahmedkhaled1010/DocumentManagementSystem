@@ -1,18 +1,19 @@
 package com.example.DocumentManagementSystem.BusinessLayer.Services;
 
-import com.example.DocumentManagementSystem.DataAccessLayer.Models.Role;
 import com.example.DocumentManagementSystem.DataAccessLayer.Models.User;
-import com.example.DocumentManagementSystem.DataAccessLayer.Models.WorkSpace;
 import com.example.DocumentManagementSystem.DataAccessLayer.Repository.jpa.RolesRepository;
 import com.example.DocumentManagementSystem.DataAccessLayer.Repository.jpa.UserRepository;
 import com.example.DocumentManagementSystem.DataAccessLayer.JWT.JwtUtil;
-import com.example.DocumentManagementSystem.DataAccessLayer.Repository.mongo.WorkSpaceRepository;
+import com.example.DocumentManagementSystem.Exception.Exceptions.InvalidCredentialsException;
+import com.example.DocumentManagementSystem.Exception.Exceptions.UserNotFoundException;
 import com.example.DocumentManagementSystem.Shared.DataTransferModel.User.LoginDto;
 import com.example.DocumentManagementSystem.Shared.DataTransferModel.User.RegisterDto;
 import com.example.DocumentManagementSystem.Shared.DataTransferModel.User.UserDto;
-import com.example.DocumentManagementSystem.Shared.Enum.Roles;
 import com.example.DocumentManagementSystem.Shared.POJO.APIResponse;
-import jakarta.validation.Valid;
+import com.example.DocumentManagementSystem.Shared.helperClasses.User.TokenServices;
+import com.example.DocumentManagementSystem.Shared.helperClasses.User.UserAuthenticator;
+import com.example.DocumentManagementSystem.Shared.helperClasses.User.UserContextService;
+import com.example.DocumentManagementSystem.Shared.helperClasses.User.UserValidator;
 import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,20 +21,42 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.security.core.Authentication;
 
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 @Service
 @Slf4j
 public class AuthServices {
+    private final WorkSpaceService workSpaceService;
+    private final RoleServices roleServices;
+    private final UserValidator userValidator;
+    private final TokenServices tokenServices ;
+    private final UserAuthenticator userAuthenticator;
+    private final UserContextService userContextService;
+    private final  UserServices userServices;
+    @Autowired
 
+    public AuthServices(WorkSpaceService workSpaceService,
+                        RoleServices roleServices,
+                        UserValidator userValidator,
+                        TokenServices tokenServices,
+                        UserAuthenticator userAuthenticator,
+                        UserContextService userContextService,
+                        UserServices userServices) {
+        this.workSpaceService = workSpaceService;
+        this.roleServices = roleServices;
+        this.userValidator = userValidator;
+        this.tokenServices = tokenServices;
+        this.userAuthenticator = userAuthenticator;
+        this.userContextService = userContextService;
+        this.userServices = userServices;
+
+    }
     @Autowired
     UserRepository userRepository;
     @Autowired
@@ -44,109 +67,35 @@ public class AuthServices {
     private JwtUtil jwtUtil;
     @Autowired
     private ModelMapper modelMapper;
-    @Autowired
-    private WorkSpaceRepository workSpaceRepository;
-    public ResponseEntity<APIResponse<Map<String, String>>> createUser(@Valid @RequestBody RegisterDto registerDto, BindingResult bindingResult) {
 
+    public String createUser( RegisterDto registerDto) {
 
-        APIResponse<Map<String, String>> response ;
-
-        if (bindingResult.hasErrors()) {
-            Map<String, String> errors = new HashMap<>();
-
-            bindingResult.getFieldErrors().forEach(error -> {
-                errors.put(error.getField(), error.getDefaultMessage());
-            });
-
-            bindingResult.getGlobalErrors().forEach(error -> {
-                errors.put("global", error.getDefaultMessage());
-            });
-
-
-            response = new APIResponse<>("400", "Error", errors);
-            return ResponseEntity.badRequest().body(response);
-        }
-        if (userRepository.findByEmail(registerDto.getEmail()).isPresent()) {
-            response = new APIResponse<>("400", "User already exists", null);
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
-        }
-        if (userRepository.findByUserName(registerDto.getUserName()).isPresent()) {
-            response = new APIResponse<>("400", "Username Already taken", null);
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
-        }
-        if (userRepository.findByNationalID(registerDto.getNationalID()).isPresent()) {
-            response = new APIResponse<>("400", "NationalID Already taken", null);
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
-        }
-
-        Role role = rolesRepository.getByRoleName(Roles.ADMIN.name());
-        log.info(role.getRoleName());
+        userValidator.validateNewUser(registerDto);
         User user =modelMapper.map(registerDto,User.class);
-        user.setRole(role);
+        user = roleServices.assignRole(user);
         user.setPassword(passwordEncoder.encode(registerDto.getPassword()));
-
-        WorkSpace workSpace = new WorkSpace();
-        workSpace.setDescription("Hello " +user.getUserName()+"  First WorkSpace");
-        workSpace.setUserNationalID(user.getNationalID());
-        workSpace.setName(user.getUserName()+"  Work Space");
-        workSpace =workSpaceRepository.save(workSpace);
-        user.setWorkSpaceList(List.of(workSpace.getId()));
         User result = userRepository.save(user);
+        workSpaceService.createFirstWorkSpace(result);
 
-        if (result != null && result.getUserId() !=null) {
-            Map<String, Object> claims = new HashMap<>();
-            claims.put("userId", result.getUserId());
-            claims.put("role", result.getRole().getRoleName());
 
-            String token = jwtUtil.generateToken(claims, result.getUserName());
-            response = new APIResponse<>(HttpStatus.CREATED.name(), "Registration successful",  Map.of("token", token));
-            return ResponseEntity.ok(response);
-        }
-        response = new APIResponse<>("401", "Registration Failed ", null);
-
-        return ResponseEntity.ok(response);
+       String token = tokenServices.generateJwtToken(result);
+        return token;
     }
 
-    public ResponseEntity<APIResponse<Map<String, String>> > login(@RequestBody LoginDto login)
-    {
-        Optional<User> user = userRepository.findByEmail(login.getEmail());
+    public String login( LoginDto login) {
+        User user = userAuthenticator.authenticate(login.getEmail(), login.getPassword());
+        String token = tokenServices.generateJwtToken(user);
 
-
-
-        if (user.isPresent()&& passwordEncoder.matches(login.getPassword(), user.get().getPassword())){
-
-            Map<String, Object> claims = new HashMap<>();
-            claims.put("userId", user.get().getUserId());
-            claims.put("role", user.get().getRole().getRoleName());
-
-            String token = jwtUtil.generateToken(claims,user.get().getUserName());
-            APIResponse<Map<String, String>> response = new APIResponse<>(HttpStatus.CREATED.name(), "Login successful", Map.of("token", token));
-
-            return ResponseEntity.ok(response);
-        }
-
-
-        else
-        {
-            APIResponse<Map<String, String>> response = new APIResponse<>("401", "Invalid credentials", null);
-            return ResponseEntity.status(401).body(response);
-        }
-
+        return token;
     }
 
-    public ResponseEntity<APIResponse< UserDto>> getUserDetails(Authentication authentication) {
+    public UserDto getUserDetails(Authentication authentication) {
 
 
 
-        User user =(User) authentication.getPrincipal();
-        if (user!=null) {
-            Optional<User> user1 = userRepository.findByUserName(user.getUserName());
-            if (user1.isPresent()) {
-                UserDto userDto = modelMapper.map(user1.get(), UserDto.class);
-
-                return ResponseEntity.ok(new APIResponse<>("200", "User details", userDto));
-            }
-        }
-        return ResponseEntity.ok(new APIResponse<>("401", "User not found", null));
+        User currentuser =userContextService.getCurrentUser(authentication);
+        User user = userServices.findByUserName(currentuser.getUserName());
+        UserDto userDto = modelMapper.map(user, UserDto.class);
+        return userDto;
     }
 }

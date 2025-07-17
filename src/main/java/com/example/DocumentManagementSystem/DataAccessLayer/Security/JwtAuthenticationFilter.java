@@ -4,6 +4,8 @@ import com.example.DocumentManagementSystem.BusinessLayer.Services.UserServices;
 import com.example.DocumentManagementSystem.DataAccessLayer.JWT.JwtUtil;
 import com.example.DocumentManagementSystem.DataAccessLayer.Models.Role;
 import com.example.DocumentManagementSystem.DataAccessLayer.Models.User;
+import com.example.DocumentManagementSystem.Exception.Exceptions.TokenExpiredException;
+import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -24,33 +26,43 @@ import java.util.List;
 @Component
 @Slf4j
 public class JwtAuthenticationFilter  extends OncePerRequestFilter {
+    private final JwtUtil jwtUtil;
+
+    private final UserServices userServices;
     @Autowired
-    private JwtUtil jwtUtil;
-    @Autowired
-    private UserServices userServices;
+    public JwtAuthenticationFilter(JwtUtil jwtUtil, UserServices userServices) {
+        this.jwtUtil = jwtUtil;
+        this.userServices = userServices;
+    }
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
         final String authHeader = request.getHeader("Authorization");
         String token = null;
         String username = null;
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            token = authHeader.substring(7);
-            username = jwtUtil.extractUsername(token);
-        }
-        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null)
-        {
-            User user = userServices.findByUserName(username);
-            if (jwtUtil.isTokenValid(token, user))
-            {
-                UsernamePasswordAuthenticationToken authToken =
-                        new UsernamePasswordAuthenticationToken(user, null,getGrantedAuthorities(user.getRole()));
-
-                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authToken);
+        try {
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                token = authHeader.substring(7);
+                username = jwtUtil.extractUsername(token);
             }
-        }
-        filterChain.doFilter(request, response);
+            if (username != null && SecurityContextHolder.getContext().getAuthentication() == null)
+            {
+                User user = userServices.findByUserName(username);
+                if (jwtUtil.isTokenValid(token, user))
+                {
+                    UsernamePasswordAuthenticationToken authToken =
+                            new UsernamePasswordAuthenticationToken(user, null,getGrantedAuthorities(user.getRole()));
 
+                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                }
+            }
+            filterChain.doFilter(request, response);
+
+        }
+        catch (ExpiredJwtException e)
+        {
+            throw new TokenExpiredException("Token Expired");
+        }
     }
     private List<GrantedAuthority> getGrantedAuthorities (Role role){
         List<GrantedAuthority> grantedAuthorities = new ArrayList<>();

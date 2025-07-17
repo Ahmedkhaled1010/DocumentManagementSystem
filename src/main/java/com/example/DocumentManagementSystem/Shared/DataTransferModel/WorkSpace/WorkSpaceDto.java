@@ -17,9 +17,7 @@ public class WorkSpaceDto {
     @NotBlank(message = "description must not be blank")
 
     private String description;
-    @NotBlank(message = "National ID must not be blank")
-    @Pattern(regexp = "^[0-9]{14}$", message = "National ID must be 14 digits")
-    private String userNationalID;
+
     private Boolean isDeleted=false;
 
     private List<Documnet> documents;

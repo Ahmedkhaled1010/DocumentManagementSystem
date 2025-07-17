@@ -32,7 +32,8 @@ public class EmailAndPasswordProvider implements AuthenticationProvider {
         Optional<User> user = userRepository.findByEmail(email);
         if (user != null && user.get().getUserId() != null && passwordEncoder.matches(password, user.get().getPassword())) {
             return new UsernamePasswordAuthenticationToken(user.get(), null, getGrantedAuthorities(user.get().getRole()));
-        } else {
+        }
+        else {
             throw new BadCredentialsException("Invalid username or password");
         }
         }

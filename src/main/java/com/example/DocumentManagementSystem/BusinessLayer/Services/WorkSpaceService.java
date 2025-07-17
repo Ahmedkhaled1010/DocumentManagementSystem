@@ -1,12 +1,22 @@
 package com.example.DocumentManagementSystem.BusinessLayer.Services;
 
+import com.example.DocumentManagementSystem.BusinessLayer.Interfaces.IWorkSpaceServices;
+import com.example.DocumentManagementSystem.DataAccessLayer.Models.Documnet;
 import com.example.DocumentManagementSystem.DataAccessLayer.Models.User;
+import com.example.DocumentManagementSystem.DataAccessLayer.Models.UserWorkSpace;
 import com.example.DocumentManagementSystem.DataAccessLayer.Models.WorkSpace;
 import com.example.DocumentManagementSystem.DataAccessLayer.Repository.jpa.UserRepository;
+import com.example.DocumentManagementSystem.DataAccessLayer.Repository.jpa.UserWorkSpaceRepository;
+import com.example.DocumentManagementSystem.DataAccessLayer.Repository.mongo.DocumentRepository;
 import com.example.DocumentManagementSystem.DataAccessLayer.Repository.mongo.WorkSpaceRepository;
+import com.example.DocumentManagementSystem.Exception.Exceptions.ResourceNotFoundException;
+import com.example.DocumentManagementSystem.Exception.Exceptions.UnauthorizedAccessException;
 import com.example.DocumentManagementSystem.Shared.DataTransferModel.WorkSpace.WorkSpaceDto;
 import com.example.DocumentManagementSystem.Shared.POJO.APIResponse;
 import com.example.DocumentManagementSystem.Shared.POJO.ApiResponsePage;
+import com.example.DocumentManagementSystem.Shared.helperClasses.User.UserContextService;
+import com.example.DocumentManagementSystem.Shared.helperClasses.workspace.WorkSpaceDeletionService;
+import com.example.DocumentManagementSystem.Shared.helperClasses.workspace.WorkSpaceValidator;
 import com.mongodb.client.result.UpdateResult;
 import org.bson.types.ObjectId;
 import org.modelmapper.ModelMapper;
@@ -28,201 +38,168 @@ import org.springframework.web.bind.annotation.RequestBody;
 import java.util.*;
 
 @Service
-public class WorkSpaceService {
+public class WorkSpaceService implements IWorkSpaceServices {
+
+    private final WorkSpaceRepository workSpaceRepository;
+
+    private final DocumentRepository documentRepository;
+    private final UserRepository userRepository;
+    private final UserWorkspaceServices userWorkspaceServices;
+    private final WorkSpaceDeletionService workSpaceDeletionService;
+    private final WorkSpaceValidator workSpaceValidator;
+    private final UserContextService userContextService;
+    private final ModelMapper modelMapper;
 
     @Autowired
-    WorkSpaceRepository workSpaceRepository;
-    @Autowired
-    UserRepository userRepository;
+    public WorkSpaceService(WorkSpaceRepository workSpaceRepository,
+                            DocumentRepository documentRepository,
+                            UserRepository userRepository,
+                            UserWorkspaceServices userWorkspaceServices,
+                            WorkSpaceDeletionService workSpaceDeletionService,
+                            WorkSpaceValidator workSpaceValidator,
+                            UserContextService userContextService,
+                            ModelMapper modelMapper) {
+        this.modelMapper = modelMapper;
+        this.workSpaceRepository = workSpaceRepository;
+        this.documentRepository = documentRepository;
+        this.userRepository = userRepository;
+        this.userWorkspaceServices = userWorkspaceServices;
+        this.workSpaceDeletionService = workSpaceDeletionService;
+        this.workSpaceValidator = workSpaceValidator;
+        this.userContextService = userContextService;
+    }
+
 
     @Autowired
     UserServices userServices;
-    @Autowired
-    private ModelMapper modelMapper;
+
     @Autowired
     private MongoTemplate mongoTemplate;
 
-   public ResponseEntity<APIResponse<Map<String, Object>>> createWorkSpace(@RequestBody WorkSpaceDto workSpaceDto, Authentication authentication, BindingResult bindingResult) {
+    public WorkSpaceDto createWorkSpace(WorkSpaceDto workSpaceDto, User user) {
         {
-            APIResponse<Map<String, Object>> response;
 
-            if (bindingResult.hasErrors()) {
-                Map<String, String> errors = new HashMap<>();
-
-                bindingResult.getFieldErrors().forEach(error -> {
-                    errors.put(error.getField(), error.getDefaultMessage());
-                });
-
-                bindingResult.getGlobalErrors().forEach(error -> {
-                    errors.put("global", error.getDefaultMessage());
-                });
-                response = new APIResponse<>("400", "Error", Map.of("error", errors));
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
-            }
-
-            User user =(User) authentication.getPrincipal();
-            System.out.println(user);
-            WorkSpace workSpace=modelMapper.map(workSpaceDto, WorkSpace.class);
+            WorkSpace workSpace = modelMapper.map(workSpaceDto, WorkSpace.class);
             workSpace.setUserNationalID(user.getNationalID());
-            workSpaceRepository.save(workSpace);
-            user.getWorkSpaceList().add(workSpace.getId());
-            userRepository.save(user);
-            response = new APIResponse<>("200", "Success", Map.of("data", workSpace));
-            return ResponseEntity.ok(response);
+            WorkSpace WorkSpaceSaved = workSpaceRepository.save(workSpace);
+            userWorkspaceServices.addWorkspace(user.getUserId(), WorkSpaceSaved.getId().toString());
+            WorkSpaceDto workSpaceDto1 = modelMapper.map(WorkSpaceSaved, WorkSpaceDto.class);
 
+            return workSpaceDto1;
 
 
         }
     }
 
-    public ResponseEntity<APIResponse<Object>> deleteWorkSpace(String workSpaceId,Boolean isDeleted)
-    {
-        APIResponse< Object> response;
-
-        Optional<WorkSpace> workSpace =workSpaceRepository.findById(new ObjectId(workSpaceId));
-        WorkSpaceDto workSpaceDto= modelMapper.map(workSpace.get(),WorkSpaceDto.class);
-        if (!workSpace.isPresent())
-        {
-            response = new APIResponse<>("404", "Not Found",  workSpaceDto);
-            return ResponseEntity.ok(response);
-        }
-        else
+    //Create First WorkSpace When User Register
+    public void createFirstWorkSpace(User user) {
         {
 
-                Query query =new Query(Criteria.where("_id").is(new ObjectId(workSpaceId)));
-                Update update =new Update().set("isDeleted",true);
-                UpdateResult result= mongoTemplate.updateFirst(query,update,WorkSpace.class);
-                response = new APIResponse<>("200", "Success",result);
+            WorkSpaceDto workSpace = new WorkSpaceDto();
+            workSpace.setDescription("Hello " + user.getUserName() + "  First WorkSpace");
+            workSpace.setName(user.getUserName() + "  Work Space");
+            createWorkSpace(workSpace, user);
 
 
-
-            return ResponseEntity.ok(response);
         }
     }
 
-    public  ResponseEntity<APIResponse<Object>> retriveWorkSpace(String workSpaceId, Authentication authentication)
-    {
 
-        APIResponse< Object> response;
-        User userSignin =(User) authentication.getPrincipal();
-        Optional<User> user = userRepository.findByuserId(userSignin.getUserId());
+    public WorkSpaceDto deleteWorkSpace(String workSpaceId, Boolean isDeleted) {
+        WorkSpace workSpace = workSpaceValidator.validateExists(workSpaceId);
+        workSpaceDeletionService.softDeleteWorkSpace(workSpace);
+        workSpace = workSpaceValidator.validateExists(workSpaceId);
+        WorkSpaceDto workSpaceDto = modelMapper.map(workSpace, WorkSpaceDto.class);
+        return workSpaceDto;
 
-        List<ObjectId> userList =user.get().getWorkSpaceList();
-
-        if (userList.contains(workSpaceId))
-        {
-            Optional<WorkSpace> workSpace=workSpaceRepository.findById(new ObjectId(workSpaceId));
-            if (workSpace.isPresent()) {
-                WorkSpaceDto workSpaceDto = modelMapper.map(workSpace, WorkSpaceDto.class);
-
-                response = new APIResponse<>("200", "Success", workSpaceDto);
-                return ResponseEntity.ok(response);
-            }
-        }
-        response = new APIResponse<>("404", "Not found",  "Not Authorize");
-        return ResponseEntity.ok(response);
     }
 
-    public  ResponseEntity<?> retriveAllWorkSpace(Authentication authentication,int pageNum, int pageSize, String sortField, String sortDir)
-    {
+    public WorkSpaceDto retriveWorkSpace(String workSpaceId, User user) {
 
-        ApiResponsePage<Object> response;
-        Pageable pageable = PageRequest.of(pageNum - 1, pageSize,
-                sortDir.equals("asc") ? Sort.by(sortField).ascending()
-                        : Sort.by(sortField).descending());
-        User userSignin =(User) authentication.getPrincipal();
-        Optional<User> user = userRepository.findByuserId(userSignin.getUserId());
-        Page<WorkSpace> workSpaceList;
-
-        if (user.isPresent())
-        {
-            workSpaceList=workSpaceRepository.findAll(pageable);
-            if (workSpaceList.isEmpty())
-            {
-                response = new ApiResponsePage<>("401", "Not found workSpace", null,workSpaceList.getNumber()+1,workSpaceList.getTotalPages(),
-                        workSpaceList.getTotalElements());
-                return ResponseEntity.ok(response);
-            }
-            List<WorkSpaceDto>  workSpaceDtoList = workSpaceList.getContent().stream()
-                    .map(workSpace -> modelMapper.map(workSpace, WorkSpaceDto.class))
-                    .toList()  ;
-            Page<WorkSpaceDto> workSpaceDtos = new PageImpl<>(workSpaceDtoList, pageable, workSpaceList.getTotalElements());
-
-            response = new ApiResponsePage<>("200", "Success", workSpaceDtos.getContent(),workSpaceDtos.getNumber()+1,workSpaceDtos.getTotalPages(),
-                    workSpaceDtos.getTotalElements());
-
-            return ResponseEntity.ok( response
-            );
-
+        WorkSpace workSpace = findWorkSpaceById(workSpaceId);
+        if (!isUserAuthorizedForWorkspace(user.getUserId(), workSpaceId)) {
+            throw new UnauthorizedAccessException("User is not authorized to access this workspace.");
         }
+        WorkSpaceDto workSpaceDto = modelMapper.map(workSpace, WorkSpaceDto.class);
+        return workSpaceDto;
 
-        response = new ApiResponsePage<>("404", "Not found", null,0,0,0L);
-        return ResponseEntity.ok(response);
+
     }
 
-    public ResponseEntity<APIResponse<Object>> updateWorkSpace(String workSpaceId,  WorkSpaceDto workSpaceDto, Authentication authentication)
-    {
-        APIResponse< Object> response;
-        User userSignin =(User) authentication.getPrincipal();
-        Optional<User> user = userRepository.findByuserId(userSignin.getUserId());
-        List<ObjectId> userList =user.get().getWorkSpaceList();
-        if (userList.contains(new ObjectId(workSpaceId)))
-        {
-            Optional<WorkSpace> workSpace=workSpaceRepository.findById(new ObjectId(workSpaceId));
-            if (workSpace.isPresent()) {
-                if (workSpaceDto.getName()!=null)
-                {
-                    workSpace.get().setName(workSpaceDto.getName());
-                }
-                if (workSpaceDto.getDescription()!=null)
-                {
-                    workSpace.get().setDescription(workSpaceDto.getDescription());
-                }
-                workSpaceRepository.save(workSpace.get());
-                response = new APIResponse<>("200", "Success", workSpace);
-                return ResponseEntity.ok(response);
-            }
-        }
-        response = new APIResponse<>("404", "Not found",  "Not Authorize");
-        return ResponseEntity.ok(response);
+    public Page<WorkSpaceDto> retriveAllWorkSpace(Authentication authentication, int pageNum, int pageSize, String sortField, String sortDir) {
+
+        Pageable pageable = buildPageRequest(pageNum, pageSize, sortField, sortDir);
+        User user = userContextService.getCurrentUser(authentication);
+        Page<WorkSpace> userWorkSpace = workSpaceRepository.findByUserNationalID(user.getNationalID(), pageable);
+
+        List<WorkSpaceDto> workSpaceDtoList = convertToDtoList(userWorkSpace.getContent());
+        Page<WorkSpaceDto> workSpaceDtos = new PageImpl<>(workSpaceDtoList, pageable, userWorkSpace.getTotalElements());
+
+
+        return workSpaceDtos;
     }
 
 
-    public  ResponseEntity<?> retriveAllWorkSpaceAllUser(Authentication authentication, int pageNum, int pageSize, String sortField, String sortDir)
-    {
-        Pageable pageable = PageRequest.of(pageNum - 1, pageSize,
-                sortDir.equals("asc") ? Sort.by(sortField).ascending()
-                        : Sort.by(sortField).descending());
-        ApiResponsePage<Object> response;
-        User userSignin =(User) authentication.getPrincipal();
-        Optional<User> user = userRepository.findByuserId(userSignin.getUserId());
-        Page<WorkSpace> workSpaceList;
-        if (user.isPresent())
-        {
-             workSpaceList=workSpaceRepository.findAll(pageable);
-             if (workSpaceList.isEmpty())
-             {
-                 response = new ApiResponsePage<>("401", "Not found workSpace", null,workSpaceList.getNumber()+1,workSpaceList.getTotalPages(),
-                         workSpaceList.getTotalElements());
-                 return ResponseEntity.ok(response);
-             }
-           List<WorkSpaceDto>  workSpaceDtoList = workSpaceList.getContent().stream()
-                    .map(workSpace -> modelMapper.map(workSpace, WorkSpaceDto.class))
-                    .toList()  ;
-            Page<WorkSpaceDto> workSpaceDtos = new PageImpl<>(workSpaceDtoList, pageable, workSpaceList.getTotalElements());
+    public WorkSpaceDto updateWorkSpace(String workSpaceId, WorkSpaceDto workSpaceDto, User user) {
 
-            response = new ApiResponsePage<>("200", "Success", workSpaceDtos.getContent(),workSpaceDtos.getNumber()+1,workSpaceDtos.getTotalPages(),
-                    workSpaceDtos.getTotalElements());
-
-            return ResponseEntity.ok( response
-            );
-
+        if (!isUserAuthorizedForWorkspace(user.getUserId(), workSpaceId)) {
+            throw new UnauthorizedAccessException("User is not authorized to access this workspace.");
         }
 
-        response = new ApiResponsePage<>("404", "Not found", null,0,0,0L);
-        return ResponseEntity.ok(response);
+        WorkSpace workSpace = findWorkSpaceById(workSpaceId);
+
+        updateWorkSpaceFromDto(workSpace, workSpaceDto);
+
+        workSpace = workSpaceRepository.save(workSpace);
+
+        return modelMapper.map(workSpace, WorkSpaceDto.class);
+
     }
 
 
+    public Page<WorkSpaceDto> retriveAllWorkSpaceAllUser(User user, int pageNum, int pageSize, String sortField, String sortDir) {
+        Pageable pageable = buildPageRequest(pageNum, pageSize, sortField, sortDir);
+        Page<WorkSpace> workSpaceList = workSpaceRepository.findAll(pageable);
+
+        if (workSpaceList.isEmpty()) {
+            throw new ResourceNotFoundException("WorkSpace not found");
+        }
+        List<WorkSpaceDto> workSpaceDtoList = convertToDtoList(workSpaceList.getContent());
+        Page<WorkSpaceDto> workSpaceDtos = new PageImpl<>(workSpaceDtoList, pageable, workSpaceList.getTotalElements());
+
+
+        return workSpaceDtos;
+
+    }
+
+
+    private WorkSpace findWorkSpaceById(String workSpaceId) {
+        return workSpaceRepository.findById(new ObjectId(workSpaceId))
+                .orElseThrow(() -> new ResourceNotFoundException("WorkSpace not found"));
+    }
+
+    private boolean isUserAuthorizedForWorkspace(UUID userId, String workspaceId) {
+        List<UserWorkSpace> userList = userWorkspaceServices.getUserWorkSpace(userId);
+        return userList.stream().anyMatch(uw -> uw.getWorkspaceMongoId().equals(workspaceId));
+    }
+
+    private void updateWorkSpaceFromDto(WorkSpace workSpace, WorkSpaceDto dto) {
+        if (dto.getName() != null) {
+            workSpace.setName(dto.getName());
+        }
+        if (dto.getDescription() != null) {
+            workSpace.setDescription(dto.getDescription());
+        }
+    }
+    private Pageable buildPageRequest(int pageNum, int pageSize, String sortField, String sortDir) {
+        Sort sort = sortDir.equalsIgnoreCase("asc") ? Sort.by(sortField).ascending() : Sort.by(sortField).descending();
+        return PageRequest.of(pageNum - 1, pageSize, sort);
+    }
+
+    private List<WorkSpaceDto> convertToDtoList(List<WorkSpace> workSpaces) {
+        return workSpaces.stream()
+                .map(ws -> modelMapper.map(ws, WorkSpaceDto.class))
+                .toList();
+    }
 
 }
