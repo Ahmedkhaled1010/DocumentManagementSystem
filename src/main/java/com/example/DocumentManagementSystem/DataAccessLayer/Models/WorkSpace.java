@@ -1,18 +1,16 @@
 package com.example.DocumentManagementSystem.DataAccessLayer.Models;
 
-import jakarta.persistence.Entity;
 import lombok.Data;
 import org.bson.types.ObjectId;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.DBRef;
-import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.util.List;
 
 
 @Data
-@Document(collection = "workspaces")
+@org.springframework.data.mongodb.core.mapping.Document(collection = "workspaces")
 public class WorkSpace extends BaseEntity {
 
     @Id
@@ -26,7 +24,7 @@ public class WorkSpace extends BaseEntity {
     private Boolean isDeleted=false;
 
     @DBRef
-    private List<Documnet> documents;
+    private List<Document> documents;
 
 
 }

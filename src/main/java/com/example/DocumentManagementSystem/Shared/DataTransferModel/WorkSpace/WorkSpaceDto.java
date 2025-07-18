@@ -1,8 +1,7 @@
 package com.example.DocumentManagementSystem.Shared.DataTransferModel.WorkSpace;
 
-import com.example.DocumentManagementSystem.DataAccessLayer.Models.Documnet;
+import com.example.DocumentManagementSystem.DataAccessLayer.Models.Document;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
 import lombok.Data;
 import org.bson.types.ObjectId;
 
@@ -20,5 +19,5 @@ public class WorkSpaceDto {
 
     private Boolean isDeleted=false;
 
-    private List<Documnet> documents;
+    private List<Document> documents;
 }

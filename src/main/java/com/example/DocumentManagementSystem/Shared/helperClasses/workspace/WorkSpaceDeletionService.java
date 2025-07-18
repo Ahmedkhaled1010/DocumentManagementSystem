@@ -1,6 +1,6 @@
 package com.example.DocumentManagementSystem.Shared.helperClasses.workspace;
 
-import com.example.DocumentManagementSystem.DataAccessLayer.Models.Documnet;
+import com.example.DocumentManagementSystem.DataAccessLayer.Models.Document;
 import com.example.DocumentManagementSystem.DataAccessLayer.Models.WorkSpace;
 import com.example.DocumentManagementSystem.DataAccessLayer.Repository.mongo.DocumentRepository;
 import com.example.DocumentManagementSystem.Shared.helperInterfaces.workspace.IWorkSpaceDeletionService;
@@ -30,9 +30,9 @@ public class WorkSpaceDeletionService implements IWorkSpaceDeletionService {
         Update update = new Update().set("isDeleted", true);
         mongoTemplate.updateFirst(query, update, WorkSpace.class);
 //هناك تعديل
-        List<Documnet> documents = workspace.getDocuments();
+        List<Document> documents = workspace.getDocuments();
         if (documents != null && !documents.isEmpty()) {
-            for (Documnet document : documents) {
+            for (Document document : documents) {
                 document.setIsDeleted(true);
                 documentRepository.save(document);
             }

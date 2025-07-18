@@ -1,39 +1,26 @@
 package com.example.DocumentManagementSystem.BusinessLayer.Services;
 
 import com.example.DocumentManagementSystem.BusinessLayer.Interfaces.IWorkSpaceServices;
-import com.example.DocumentManagementSystem.DataAccessLayer.Models.Documnet;
 import com.example.DocumentManagementSystem.DataAccessLayer.Models.User;
 import com.example.DocumentManagementSystem.DataAccessLayer.Models.UserWorkSpace;
 import com.example.DocumentManagementSystem.DataAccessLayer.Models.WorkSpace;
 import com.example.DocumentManagementSystem.DataAccessLayer.Repository.jpa.UserRepository;
-import com.example.DocumentManagementSystem.DataAccessLayer.Repository.jpa.UserWorkSpaceRepository;
 import com.example.DocumentManagementSystem.DataAccessLayer.Repository.mongo.DocumentRepository;
 import com.example.DocumentManagementSystem.DataAccessLayer.Repository.mongo.WorkSpaceRepository;
 import com.example.DocumentManagementSystem.Exception.Exceptions.ResourceNotFoundException;
 import com.example.DocumentManagementSystem.Exception.Exceptions.UnauthorizedAccessException;
 import com.example.DocumentManagementSystem.Shared.DataTransferModel.WorkSpace.WorkSpaceDto;
-import com.example.DocumentManagementSystem.Shared.POJO.APIResponse;
-import com.example.DocumentManagementSystem.Shared.POJO.ApiResponsePage;
 import com.example.DocumentManagementSystem.Shared.helperClasses.User.UserContextService;
 import com.example.DocumentManagementSystem.Shared.helperClasses.workspace.WorkSpaceDeletionService;
 import com.example.DocumentManagementSystem.Shared.helperClasses.workspace.WorkSpaceValidator;
-import com.mongodb.client.result.UpdateResult;
 import org.bson.types.ObjectId;
 import org.modelmapper.ModelMapper;
-import org.modelmapper.TypeToken;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.*;
 import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.query.Query;
-import org.springframework.data.mongodb.core.query.Criteria;
 
-import org.springframework.data.mongodb.core.query.Update;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
-import org.springframework.validation.BindingResult;
-import org.springframework.web.bind.annotation.RequestBody;
 
 import java.util.*;
 
@@ -173,12 +160,15 @@ public class WorkSpaceService implements IWorkSpaceServices {
     }
 
 
-    private WorkSpace findWorkSpaceById(String workSpaceId) {
+    public WorkSpace findWorkSpaceById(String workSpaceId) {
         return workSpaceRepository.findById(new ObjectId(workSpaceId))
                 .orElseThrow(() -> new ResourceNotFoundException("WorkSpace not found"));
     }
+    public void updateWorkSpace(WorkSpace workSpace) {
+        workSpaceRepository.save(workSpace);
+    }
 
-    private boolean isUserAuthorizedForWorkspace(UUID userId, String workspaceId) {
+    public boolean isUserAuthorizedForWorkspace(UUID userId, String workspaceId) {
         List<UserWorkSpace> userList = userWorkspaceServices.getUserWorkSpace(userId);
         return userList.stream().anyMatch(uw -> uw.getWorkspaceMongoId().equals(workspaceId));
     }

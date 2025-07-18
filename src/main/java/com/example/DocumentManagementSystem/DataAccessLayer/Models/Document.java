@@ -4,10 +4,10 @@ import com.example.DocumentManagementSystem.Shared.Enum.Privacy;
 import lombok.Data;
 import org.bson.types.ObjectId;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.mapping.Document;
+
 @Data
-@Document(collection = "documents")
-public class Documnet extends BaseEntity {
+@org.springframework.data.mongodb.core.mapping.Document(collection = "documents")
+public class Document extends BaseEntity {
 
     @Id
     private ObjectId id;
@@ -18,7 +18,7 @@ public class Documnet extends BaseEntity {
     private String nationalID;
 
     private long size;
-    private String title;
     private Boolean isDeleted=false;
+    private String tag = "GENERAL";
     private String privacy= Privacy.PRIVATE.toString();
 }

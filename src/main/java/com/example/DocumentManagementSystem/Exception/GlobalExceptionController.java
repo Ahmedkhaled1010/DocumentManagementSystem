@@ -59,6 +59,7 @@ public class GlobalExceptionController extends ResponseEntityExceptionHandler {
         APIResponse<String> response = new APIResponse<>("400", ex.getMessage(), null);
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }
+
     @ExceptionHandler(RegistrationFailedException.class)
     public ResponseEntity<APIResponse<Object>> handleRegistrationFailed(RegistrationFailedException ex) {
         APIResponse<Object> response = new APIResponse<>("401", ex.getMessage(), null);
@@ -70,11 +71,13 @@ public class GlobalExceptionController extends ResponseEntityExceptionHandler {
         APIResponse<Object> response = new APIResponse<>("401", ex.getMessage(), null);
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
     }
+
     @ExceptionHandler(UserNotFoundException.class)
     public ResponseEntity<APIResponse<Object>> handleUserNotFound(UserNotFoundException ex) {
         APIResponse<Object> response = new APIResponse<>("404", ex.getMessage(), null);
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
     }
+
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<APIResponse<Object>> handleNotFound(ResourceNotFoundException ex) {
         APIResponse<Object> response = new APIResponse<>("404", ex.getMessage(), null);
@@ -86,10 +89,24 @@ public class GlobalExceptionController extends ResponseEntityExceptionHandler {
         APIResponse<String> response = new APIResponse<>("403", ex.getMessage(), null);
         return new ResponseEntity<>(response, HttpStatus.FORBIDDEN);
     }
+
     @ExceptionHandler(TokenExpiredException.class)
     public ResponseEntity<APIResponse<String>> handleTokenExpired(TokenExpiredException ex) {
         APIResponse<String> response = new APIResponse<>("401", ex.getMessage(), null);
         return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
     }
+
+    @ExceptionHandler(FileStorageException.class)
+    public ResponseEntity<APIResponse<Object>> handleFileStorageException(FileStorageException ex) {
+        APIResponse<Object> response = new APIResponse<>("500", ex.getMessage(), null);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+
+    @ExceptionHandler(DocumentDeletedException.class)
+    public ResponseEntity<APIResponse<Object>> handleDocumentDeletedException(DocumentDeletedException ex) {
+        APIResponse<Object> response = new APIResponse<>("403", ex.getMessage(), null);
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+    }
+
 
 }
